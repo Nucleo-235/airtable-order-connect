@@ -1,3 +1,4 @@
+require('dotenv').config()
 var Airtable = require('airtable');
 var extend = require('extend');
 var base = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
@@ -61,7 +62,7 @@ function doCopyFuncionalidade(funcionalidade, projetoTargetRef) {
         delete cloned["id"];
         delete cloned["_rawJson"];
         delete cloned["_table"];
-        var validFields = ["Titulo", "Order", "Descricao"];
+        var validFields = ["Titulo", "Order", "Descricao", "Ator"];
         var fieldKeys = Object.keys(cloned.fields);
         for (let f = 0; f < fieldKeys.length; f++) {
             const fieldKey = fieldKeys[f];
@@ -84,7 +85,7 @@ function doCopyItem(item, newFuncionalidadeRef, newProjetoRef) {
         delete cloned["id"];
         delete cloned["_rawJson"];
         delete cloned["_table"];
-        var validFields = ["Titulo", "Order", "Categoria", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
+        var validFields = ["Titulo", "Order", "Categoria", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
         var fieldKeys = Object.keys(cloned.fields);
         for (let f = 0; f < fieldKeys.length; f++) {
             const fieldKey = fieldKeys[f];
@@ -93,7 +94,7 @@ function doCopyItem(item, newFuncionalidadeRef, newProjetoRef) {
             }
         }
         cloned.fields.Funcionalidade = [newFuncionalidadeRef.id];
-        cloned.fields["Já fiz?"] = "Não";
+        // cloned.fields["Já fiz?"] = "Não";
         // cloned.fields.Projeto = [newProjetoRef.id];
         console.log(cloned.fields);
         base('Items').create(cloned.fields, function(err, record) {
@@ -152,4 +153,4 @@ function copyProject(projeto, projetoTarget) {
     });
 }
 
-// copyProject("000277-A", "000277-B - ");
+// copyProject("000287-A - Novas Lojas Magazine Luiza Op Usando Tema Pronto", "000287-A - Novas Lojas Magazine Luiza Op HTML a partir de Design Personalizado")

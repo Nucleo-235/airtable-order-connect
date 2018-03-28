@@ -1,3 +1,4 @@
+require('dotenv').config()
 var Airtable = require('airtable');
 var extend = require('extend');
 var base = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
@@ -135,75 +136,154 @@ function writeToPrints(content, filename) {
     });
 }
 
-function printAll(projetoCodigo, includeHours, includeTotals) {
-    var callback;
-    if (includeHours) {
-        callback = (html, funcionalidadelHtml, funcionalidade, baseHourMultipler) => { 
-            funcionalidadelHtml += "\t<ul>\r\n";
-            let hours = 0;
-            for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
-                const item = funcionalidade.LoadedItems[i];
-                const realHours = item["Resultado Qty"]* baseHourMultipler;
-                const currentHours = Math.ceil(realHours * 100) / 100.0;
-                funcionalidadelHtml += `\t\t<li>${item.Titulo} (${currentHours})</li>\r\n`;
-                hours += realHours;
-            }
-            if (includeTotals) {
-                const finalHours = Math.ceil(hours * 100) / 100.0;
-                funcionalidadelHtml += `\t\t<li class="sum"><strong>Total:</strong>${finalHours}</li>\r\n`;
-            }
-            funcionalidadelHtml += "\t</ul>\r\n";
-            return funcionalidadelHtml;
-        }
-    } else {
-        callback = (html, funcionalidadelHtml, funcionalidade, baseHourMultipler) => { 
-            funcionalidadelHtml += "\t<ul>\r\n";
-            for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
-                const item = funcionalidade.LoadedItems[i];
-                funcionalidadelHtml += `\t\t<li>${item.Titulo}</li>\r\n`;
-            }
-            funcionalidadelHtml += "\t</ul>\r\n";
-            return funcionalidadelHtml;
-        }
+function printULList(item, children, tabSize, beforeCallback, childCallback, afterCallback) {
+    beforeCallback = beforeCallback ? beforeCallback : function(item, tab) { return ""; };
+    childCallback = childCallback ? childCallback : function(item, child, childTab) { return `${childTab}\t${child.HTML}`; };
+    afterCallback = afterCallback ? afterCallback : function(item, tab) { return ""; };
+
+    var tab = "";
+    for (let t = 0; t < tabSize; t++) {
+        tab += "\t";
     }
-    return doPrintFuncionalidades(projetoCodigo, includeHours, includeTotals, projetoCodigo + ".html", callback).then(result => {
-        console.log("printAll DONE!");
-        return result;
-    }, error => {
-        console.log("error printAll", error);
-    });;
+    var childTab = tab + "\t";
+    var finalHTML = tab + "<ul>\r\n";
+    finalHTML += `${beforeCallback(item, tab)}`;
+
+    for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        finalHTML += `${childTab}<li>\r\n`
+        finalHTML += `${childCallback(item, child, childTab)}`;
+        if (child.children && child.children.length > 0) {
+            const childHTML = printULList(child, child.children, tabSize + 2, beforeCallback, childCallback, afterCallback);
+            finalHTML += childHTML;
+        }
+        finalHTML += `${childTab}</li>\r\n`
+    }
+
+    finalHTML += `${afterCallback(item, tab)}`;
+    finalHTML += tab + "</ul>\r\n";
+    return finalHTML;
 }
 
-function doPrintFuncionalidades(projetoCodigo, includeHours, includeTotals, filename, printCallback) {
-    return loadFullProjeto(projetoCodigo).then(projeto => {
-        let html = "<ul>\r\n"
-        if (includeHours) {
-            let hours = 0;
-            var baseHourMultipler = projeto["Fator Final"];
-            for (let f = 0; f < projeto.LoadedFuncionalidades.length; f++) {
-                const funcionalidade = projeto.LoadedFuncionalidades[f];
-                const realHours = funcionalidade["Soma Diff"]* baseHourMultipler;
-                const currentHours = Math.ceil(realHours * 100) / 100.0;
-                partialHtml = `\t<li>${funcionalidade.Titulo} (${currentHours})`
-                partialHtml = printCallback(html, partialHtml, funcionalidade, baseHourMultipler);
-                partialHtml += "\t</li>\r\n";
-                html += partialHtml;
-                hours += realHours;
-            }
-            if (includeTotals) {
-                const finalHours = Math.ceil(hours * 100) / 100.0;
-                html += `\t<li class="sum"><strong>Total:</strong>${finalHours}</li>\r\n`;
-            }
-        } else {
-            for (let f = 0; f < projeto.LoadedFuncionalidades.length; f++) {
-                const funcionalidade = projeto.LoadedFuncionalidades[f];
-                var partialHtml = `\t<li>${funcionalidade.Titulo}`
-                partialHtml = printCallback(html, partialHtml, funcionalidade);
-                partialHtml += "</li>\r\n";
-                html += partialHtml;
+function printTotals(item) {
+    const finalHours = Math.ceil(item.hours * 100) / 100.0;
+    return `<span class="sum"><strong>Total:</strong>${finalHours}</span>`;
+}
+function printFuncionalidadeSingle(funcionalidade, includeHours) {
+    return includeHours ? `${funcionalidade.Titulo} (${funcionalidade.currentHours})` : `${funcionalidade.Titulo}`;
+}
+
+function shoudlPrintItem(item, includeHours) {
+    return includeHours || (item["Descrição"] && item["Descrição"].length > 0);
+}
+function printItemSingle(item, includeHours) {
+    if (includeHours) {
+        return `${item.Titulo} (${currentHours})`
+    } else {
+        var titulo = item["Descrição"] && item["Descrição"].length > 0 ? item["Descrição"] : item.Titulo;
+        return `${titulo}`;
+    }
+}
+
+function setTotals(projeto) {
+    let projetoHours = 0;
+    var baseHourMultipler = projeto["Fator Final"];
+    var funcionalidades = projeto.LoadedFuncionalidades;
+    for (let f = 0; f < funcionalidades.length; f++) {
+        const funcionalidade = funcionalidades[f];
+        funcionalidade.realHours = funcionalidade["Soma Diff"]* baseHourMultipler;
+        funcionalidade.currentHours = Math.ceil(funcionalidade.realHours * 100) / 100.0;
+        funcionalidade.hours = funcionalidade.currentHours;
+        
+        projetoHours += funcionalidade.realHours;
+
+        var funcionalidadeHours = 0;
+        for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
+            const item = funcionalidade.LoadedItems[i];
+            item.realHours = item["Resultado Qty"]* baseHourMultipler;
+            item.currentHours = Math.ceil(item.realHours * 100) / 100.0;
+        }
+    }
+    projeto.hours = projetoHours;
+}
+
+function setActorGroups(projeto) {
+    const groupsMap = {};
+    const groups = [];
+    for (let f = 0; f < projeto.LoadedFuncionalidades.length; f++) {
+        const funcionalidade = projeto.LoadedFuncionalidades[f];
+        var ator = 'GLOBAL';
+        if (funcionalidade.Ator && funcionalidade.Ator.trim().length > 0) {
+            ator = funcionalidade.Ator;
+        }
+        if (!groupsMap[ator]) {
+            var atorObj = { name: ator, funcionalidades: [] };
+            groups.push(atorObj);
+            groupsMap[ator] = atorObj;
+        }
+        atorObj.funcionalidades.push(funcionalidade);
+    }
+    projeto.actorGroups = groups;
+    for (let g = 0; g < projeto.actorGroups.length; g++) {
+        const group = projeto.actorGroups[g];
+        let groupHours = 0;
+        
+        var funcionalidades = group.funcionalidades;
+        for (let f = 0; f < funcionalidades.length; f++) {
+            const funcionalidade = funcionalidades[f];
+            groupHours += funcionalidade.realHours;
+        }
+        group.hours = groupHours;
+    }
+}
+
+function funcionalidadesToHTMLList(owner, funcionalidades, includeHours, includeTotals, printItems) {
+    var tree = [];
+    for (let f = 0; f < funcionalidades.length; f++) {
+        const funcionalidade = funcionalidades[f];
+        const treeFuncionalidade = { HTML: printFuncionalidadeSingle(funcionalidade, includeHours), children: [] };
+        tree.push(treeFuncionalidade);
+
+        if (printItems) {
+            for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
+                const item = funcionalidade.LoadedItems[i];
+                if (shoudlPrintItem(item, includeHours))
+                    treeFuncionalidade.children.push({ HTML: printItemSingle(item, includeHours), children: [] });
             }
         }
-        html += "</ul>";
+    }
+    if (includeTotals)
+        tree.push({ HTML: printTotals(owner) });
+
+    return tree;
+}
+
+function projetoToRecursiveHTMLList(projeto, includeHours, includeTotals, printItems) {
+    var tree;
+    if (projeto.actorGroups.length > 1) {
+        tree = [];
+        for (let g = 0; g < projeto.actorGroups.length; g++) {
+            const group = projeto.actorGroups[g];
+            const groupNode = { HTML: group.name }
+            groupNode.children = funcionalidadesToHTMLList(group, group.funcionalidades, includeHours, includeTotals, printItems);
+            tree.push(groupNode);
+        }
+        if (includeTotals)
+            tree.push({ HTML: printTotals(projeto) });
+    } else {
+        tree = funcionalidadesToHTMLList(projeto, projeto.LoadedFuncionalidades, includeHours, includeTotals, printItems);
+    }
+    return tree;
+}
+
+function printProject(projetoCodigo, includeHours, includeTotals, filename, printItems) {
+    return loadFullProjeto(projetoCodigo).then(projeto => {
+        setTotals(projeto);
+        setActorGroups(projeto);
+
+        var treeNodes = projetoToRecursiveHTMLList(projeto, includeHours, includeTotals, printItems);
+        var finalULHTML = printULList(projeto, treeNodes);
+        var html = `<h1>${projeto.Codigo}</h1>\r\n${finalULHTML}`;
         return writeToPrints(html, filename);
     }, error => {
         console.log("error printing");
@@ -211,14 +291,22 @@ function doPrintFuncionalidades(projetoCodigo, includeHours, includeTotals, file
 }
 
 function printFuncionalidades(projetoCodigo, includeHours, includeTotals) {
-    var callback = (html, partialHtml, funcionalidade) => { return partialHtml; };
-    return doPrintFuncionalidades(projetoCodigo, includeHours, includeTotals, projetoCodigo+"-macro.html", callback).then(result => {
+    return printProject(projetoCodigo, includeHours, includeTotals, projetoCodigo+"-macro.html", false).then(result => {
         console.log("printFuncionalidades DONE!");
         return result;
     }, error => {
         console.log("error printFuncionalidades", error);
-    });;
+    });
+}
+
+function printAll(projetoCodigo, includeHours, includeTotals) {
+    return printProject(projetoCodigo, includeHours, includeTotals, projetoCodigo+"-complete.html", true).then(result => {
+        console.log("printFuncionalidades DONE!");
+        return result;
+    }, error => {
+        console.log("error printFuncionalidades", error);
+    });
 }
 
 // printFuncionalidades("282-A", true, true);
-// printAll("282-A", true, true);
+// printAll("000287-A - Novas Lojas Magazine Luiza Op HTML a partir de Design Personalizado", false, false);
