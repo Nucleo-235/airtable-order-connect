@@ -4,6 +4,11 @@ var extend = require('extend');
 var base = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
 var fs = require('fs');
 
+var defaultOptions = { 
+    includeHours: false, 
+    includeTotals: false,
+    templateFile: "default.html"
+};
 
 function loadAllFuncionalidades(projeto, callback) {
     var allFuncionalidads = [];
@@ -276,22 +281,32 @@ function projetoToRecursiveHTMLList(projeto, includeHours, includeTotals, printI
     return tree;
 }
 
-function printProject(projetoCodigo, includeHours, includeTotals, filename, printItems) {
+function addToPrintTemplate(content, templateFile) {
+    var template = fs.readFileSync('./templates/' + templateFile, 'utf8');
+    template = template.replace("__BODY_HERE__", content);
+    return template;
+}
+
+function printProject(projetoCodigo, options, filename, printItems) {
     return loadFullProjeto(projetoCodigo).then(projeto => {
         setTotals(projeto);
         setActorGroups(projeto);
 
-        var treeNodes = projetoToRecursiveHTMLList(projeto, includeHours, includeTotals, printItems);
+        var treeNodes = projetoToRecursiveHTMLList(projeto, options.includeHours, options.includeTotals, printItems);
         var finalULHTML = printULList(projeto, treeNodes);
-        var html = `<h1>${projeto.Codigo}</h1>\r\n${finalULHTML}`;
+        var html = addToPrintTemplate(`<h1>${projeto.Codigo}</h1>\r\n${finalULHTML}`, options.templateFile);
         return writeToPrints(html, filename);
     }, error => {
         console.log("error printing");
     })
 }
 
-function printFuncionalidades(projetoCodigo, includeHours, includeTotals) {
-    return printProject(projetoCodigo, includeHours, includeTotals, projetoCodigo+"-macro.html", false).then(result => {
+function getFinalOptions(options) {
+    return extend({}, defaultOptions, options);
+}
+
+function printFuncionalidades(projetoCodigo, options) {
+    return printProject(projetoCodigo, getFinalOptions(options || {}), projetoCodigo+"-macro.html", false).then(result => {
         console.log("printFuncionalidades DONE!");
         return result;
     }, error => {
@@ -299,8 +314,8 @@ function printFuncionalidades(projetoCodigo, includeHours, includeTotals) {
     });
 }
 
-function printAll(projetoCodigo, includeHours, includeTotals) {
-    return printProject(projetoCodigo, includeHours, includeTotals, projetoCodigo+"-complete.html", true).then(result => {
+function printAll(projetoCodigo, options) {
+    return printProject(projetoCodigo, getFinalOptions(options || {}), projetoCodigo+"-complete.html", true).then(result => {
         console.log("printFuncionalidades DONE!");
         return result;
     }, error => {
@@ -309,4 +324,5 @@ function printAll(projetoCodigo, includeHours, includeTotals) {
 }
 
 // printFuncionalidades("282-A", true, true);
-// printAll("000287-A - Novas Lojas Magazine Luiza Op HTML a partir de Design Personalizado", false, false);
+// printAll("000286-A - KPMG Gameficação", { templateFile: 'apple_email.html' })
+// printAll("000286-A - KPMG Gameficação", { templateFile: 'google_doc_order.html' })
