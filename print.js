@@ -1,7 +1,9 @@
 require('dotenv').config()
 var Airtable = require('airtable');
 var extend = require('extend');
-var base = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
+var base2018_01to03 = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
+var base2018_03to = new Airtable({apiKey: process.env.API_KEY}).base('appUY5izA64IFGRd1');
+var base = base2018_03to;
 var fs = require('fs');
 
 var defaultOptions = { 
