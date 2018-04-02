@@ -223,8 +223,9 @@ function setActorGroups(projeto) {
         if (funcionalidade.Ator && funcionalidade.Ator.trim().length > 0) {
             ator = funcionalidade.Ator;
         }
-        if (!groupsMap[ator]) {
-            var atorObj = { name: ator, funcionalidades: [] };
+        var atorObj = groupsMap[ator];
+        if (!atorObj) {
+            atorObj = { name: ator, funcionalidades: [] };
             groups.push(atorObj);
             groupsMap[ator] = atorObj;
         }
