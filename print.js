@@ -185,7 +185,7 @@ function shoudlPrintItem(item, includeHours) {
 }
 function printItemSingle(item, includeHours) {
     if (includeHours) {
-        return `${item.Titulo} (${currentHours})`
+        return `${item.Titulo} (${item.currentHours})`
     } else {
         var titulo = item["Descrição"] && item["Descrição"].length > 0 ? item["Descrição"] : item.Titulo;
         return `${titulo}`;
