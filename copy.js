@@ -1,62 +1,7 @@
 require('dotenv').config()
-var Airtable = require('airtable');
+var AirtableBase = require('./airtable_base.js');
 var extend = require('extend');
-var base2018_01to03 = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
-var base2018_03to = new Airtable({apiKey: process.env.API_KEY}).base('appUY5izA64IFGRd1');
-var base = base2018_03to;
-
-function loadAllFuncionalidades(projeto, callback) {
-    var allFuncionalidads = [];
-
-    base('Funcionalidades').select({
-        // Selecting the first 3 records in Grid view:
-        // maxRecords: 100,
-        // view: "Grid view",
-        filterByFormula: `(SEARCH('${projeto}', Projeto) > 0)`,
-        sort: [{field: "Codigo", direction: "asc"}]
-    }).eachPage(function page(records, fetchNextPage) {
-        // This function (`page`) will get called for each page of records.
-        records.forEach(function(record) {
-            allFuncionalidads.push(record);
-        });
-
-        // To fetch the next page of records, call `fetchNextPage`.
-        // If there are more records, `page` will get called again.
-        // If there are no more records, `done` will get called.
-        fetchNextPage();
-
-    }, function done(err) {
-        if (err) { console.error(err); return; }
-        else {
-            callback(allFuncionalidads);
-        }
-    });
-}
-
-function getProjectRef(projetoCodigo, callback) {
-    var result = null;
-    base('Projetos').select({
-        // Selecting the first 3 records in Grid view:
-        maxRecords: 1,
-        filterByFormula: `(SEARCH('${projetoCodigo}', Codigo) > 0)`,
-    }).eachPage(function page(records, fetchNextPage) {
-        // This function (`page`) will get called for each page of records.
-    
-        
-        records.forEach(function(record) {
-            result = record;
-        });
-    
-        // To fetch the next page of records, call `fetchNextPage`.
-        // If there are more records, `page` will get called again.
-        // If there are no more records, `done` will get called.
-        fetchNextPage();
-    
-    }, function done(err) {
-        if (err) { console.error(err); return; }
-        else { callback(result); }
-    });
-}
+var fs = require('fs');
 
 function doCopyFuncionalidade(funcionalidade, projetoTargetRef) {
     return new Promise((resolve, reject) => {
@@ -74,7 +19,7 @@ function doCopyFuncionalidade(funcionalidade, projetoTargetRef) {
         }
         cloned.fields.Items = [];
         cloned.fields.Projeto = [projetoTargetRef.id];
-        base('Funcionalidades').create(cloned.fields, function(err, record) {
+        AirtableBase.main_base('Funcionalidades').create(cloned.fields, function(err, record) {
             if (err) { console.error(err); return; }
             else { resolve(record); return; }
         }); 
@@ -83,39 +28,75 @@ function doCopyFuncionalidade(funcionalidade, projetoTargetRef) {
 
 function doCopyItem(item, newFuncionalidadeRef, newProjetoRef) {
     return new Promise((resolve, reject) => {
-        var cloned = extend({}, item);
-        delete cloned["id"];
-        delete cloned["_rawJson"];
-        delete cloned["_table"];
-        var validFields = ["Titulo", "Order", "Categoria", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
-        var fieldKeys = Object.keys(cloned.fields);
-        for (let f = 0; f < fieldKeys.length; f++) {
-            const fieldKey = fieldKeys[f];
-            if (validFields.indexOf(fieldKey) == -1) {
-                delete cloned.fields[fieldKey];
+        try {
+            var cloned = extend({}, item);
+            delete cloned["id"];
+            delete cloned["_rawJson"];
+            delete cloned["_table"];
+            var validFields = ["Titulo", "Order", "Categoria", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
+            var fieldKeys = Object.keys(cloned.fields);
+            for (let f = 0; f < fieldKeys.length; f++) {
+                const fieldKey = fieldKeys[f];
+                if (validFields.indexOf(fieldKey) == -1) {
+                    delete cloned.fields[fieldKey];
+                }
             }
+            cloned.fields.Funcionalidade = [newFuncionalidadeRef.id];
+            // cloned.fields["Já fiz?"] = "Não";
+            // cloned.fields.Projeto = [newProjetoRef.id];
+            console.log(cloned.fields);
+            AirtableBase.main_base('Items').create(cloned.fields, function(err, record) {
+                if (err) { console.error(err); reject(err); return; }
+                else { console.log(record.id); resolve(record); return; }
+            }); 
+        } catch (ex) {
+            console.log('doCopyItem', ex);
+            reject(ex);
         }
-        cloned.fields.Funcionalidade = [newFuncionalidadeRef.id];
+    });
+}
+
+function doAddEmptyItem(funcionalidadeRef) {
+    return new Promise((resolve, reject) => {
+        var item = { fields: {} };
+        var validFields = ["Titulo", "Order", "Categoria", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
+        item.fields.Titulo = "";
+        item.fields.Quantidade = 1;
+        if (funcionalidadeRef.fields && funcionalidadeRef.fields.Order) {
+            item.fields.Order = funcionalidadeRef.fields.Order * 10;
+            if (funcionalidadeRef.fields.Items && funcionalidadeRef.fields.Items.length > 0)
+                item.fields.Order = item.fields.Order + funcionalidadeRef.fields.Items.length;
+        }
+        
+        item.fields.Funcionalidade = [funcionalidadeRef.id];
         // cloned.fields["Já fiz?"] = "Não";
         // cloned.fields.Projeto = [newProjetoRef.id];
-        console.log(cloned.fields);
-        base('Items').create(cloned.fields, function(err, record) {
+        console.log(item.fields);
+        AirtableBase.main_base('Items').create(item.fields, function(err, record) {
             if (err) { console.error(err); return; }
-            else { console.log(record.id); resolve(record); return; }
+            else { 
+                if (!funcionalidadeRef.fields.Items)
+                    funcionalidadeRef.fields.Items = [];
+                funcionalidadeRef.fields.Items.push(record);
+                console.log(record.id); 
+                resolve(record); 
+                return; 
+            }
         }); 
     });
 }
 
 function doLoadAndCopyItem(itemId, newFuncionalidadeRef, newProjetoRef) {
     return new Promise((resolve, reject) => {
-        base('Items').find(itemId, function(err, record) {
-            if (err) { 
-                console.error(err);
-                reject(err); 
-                return; 
-            } else {
-                doCopyItem(record, newFuncionalidadeRef, newProjetoRef).then(resolve, reject);
-            }
+        AirtableBase.find('Items', itemId).then(record => {
+            console.log(record);
+            doCopyItem(record, newFuncionalidadeRef, newProjetoRef).then(resolve, err => {
+                console.log('doCopyItem err', err);
+                reject(err);
+            });
+        }, err => {
+            console.log('find err', err);
+            reject(err);
         });
     });
 }
@@ -137,9 +118,9 @@ function copyFuncionalidade(funcionalidade, projetoTargetRef) {
 
 function copyProject(projeto, projetoTarget) {
     return new Promise((resolve, reject) => {
-        loadAllFuncionalidades(projeto, funcionalidades => {
+        AirtableBase.loadAllFuncionalidades(projeto, funcionalidades => {
             console.log('loadAllFuncionalidades', funcionalidades ? funcionalidades.length : null);
-            getProjectRef(projetoTarget, newProjectRef => {
+            AirtableBase.getProjectRef(projetoTarget).then(newProjectRef => {
                 console.log('getProjectRef', newProjectRef);
                 const promises = [];
                 for (let i = 0; i < funcionalidades.length; i++) {
@@ -150,9 +131,42 @@ function copyProject(projeto, projetoTarget) {
                     console.log('copied', result)
                     resolve(result);
                 }, reject);
-            })
+            }, reject)
+        });
+    });
+}
+
+function addEmptyItemToFuncion(funcionalidade, projetoTargetRef) {
+    return new Promise((resolve, reject) => {
+        var original = extend({}, funcionalidade.fields);
+        if (original.Items && original.Items.length > 0) {
+            resolve(true);
+        } else {
+            doAddEmptyItem(funcionalidade);
+        }
+    });
+}
+
+function addInitialItemsToProject(projetoTarget) {
+    return new Promise((resolve, reject) => {
+        AirtableBase.loadAllFuncionalidades(projetoTarget, funcionalidades => {
+            console.log('loadAllFuncionalidades', funcionalidades ? funcionalidades.length : null);
+            AirtableBase.getProjectRef(projetoTarget).then(projectRef => {
+                console.log('getProjectRef', projectRef);
+                const promises = [];
+                for (let i = 0; i < funcionalidades.length; i++) {
+                    const funcionalidade = funcionalidades[i];
+                    promises.push(addEmptyItemToFuncion(funcionalidade, projectRef));
+                }
+                Promise.all(promises).then(result => {
+                    console.log('added', result)
+                    resolve(result);
+                }, reject);
+            }, reject);
         });
     });
 }
 
 // copyProject("000287-A - Novas Lojas Magazine Luiza Op Usando Tema Pronto", "000287-A - Novas Lojas Magazine Luiza Op HTML a partir de Design Personalizado")
+// addInitialItemsToProject("000292-A - Plataforma EAD")
+// copyProject("000279-A - KPMG Site/App Op Escopo Fechado", "000279-B - KPMG Site/App Op Escopo Fechado")

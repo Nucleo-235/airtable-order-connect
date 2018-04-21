@@ -1,9 +1,6 @@
 require('dotenv').config()
-var Airtable = require('airtable');
+var AirtableBase = require('./airtable_base.js');
 var extend = require('extend');
-var base2018_01to03 = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
-var base2018_03to = new Airtable({apiKey: process.env.API_KEY}).base('appUY5izA64IFGRd1');
-var base = base2018_03to;
 var fs = require('fs');
 
 var defaultOptions = { 
@@ -12,57 +9,9 @@ var defaultOptions = {
     templateFile: "default.html"
 };
 
-function loadAllFuncionalidades(projeto, callback) {
-    var allFuncionalidads = [];
-
-    base('Funcionalidades').select({
-        // Selecting the first 3 records in Grid view:
-        // maxRecords: 100,
-        // view: "Grid view",
-        filterByFormula: `(SEARCH('${projeto}', Projeto) > 0)`,
-        sort: [{field: "Codigo", direction: "asc"}]
-    }).eachPage(function page(records, fetchNextPage) {
-        // This function (`page`) will get called for each page of records.
-        records.forEach(function(record) {
-            allFuncionalidads.push(record);
-        });
-
-        // To fetch the next page of records, call `fetchNextPage`.
-        // If there are more records, `page` will get called again.
-        // If there are no more records, `done` will get called.
-        fetchNextPage();
-
-    }, function done(err) {
-        if (err) { console.error(err); return; }
-        else {
-            callback(allFuncionalidads);
-        }
-    });
-}
-
-function getProjectRef(projetoCodigo) {
-    return new Promise((resolve, reject) => {
-        var result = null;
-        base('Projetos').select({
-            // Selecting the first 3 records in Grid view:
-            maxRecords: 1,
-            filterByFormula: `(SEARCH('${projetoCodigo}', Codigo) > 0)`,
-        }).eachPage(function page(records, fetchNextPage) {
-            records.forEach(function(record) {
-                result = record;
-            });
-            fetchNextPage();
-        
-        }, function done(err) {
-            if (err) { console.error(err); reject(err); return; }
-            else { resolve(result); }
-        });
-    });
-}
-
 function loadProjeto(projetoCodigo) {
     return new Promise((resolve, reject) => {
-        getProjectRef(projetoCodigo).then(record => {
+        AirtableBase.getProjectRef(projetoCodigo).then(record => {
             var projeto = extend({}, record.fields);
             projeto.id = record.id;
             resolve(projeto);
@@ -72,17 +21,11 @@ function loadProjeto(projetoCodigo) {
 
 function doLoadItem(itemId) {
     return new Promise((resolve, reject) => {
-        base('Items').find(itemId, function(err, record) {
-            if (err) { 
-                console.error(err);
-                reject(err); 
-                return; 
-            } else {
-                var item = extend({}, record.fields);
-                item.id = record.id;
-                resolve(item);
-            }
-        });
+        AirtableBase.find('Items', itemId).then(record => {
+            var item = extend({}, record.fields);
+            item.id = record.id;
+            resolve(item);
+        }, reject);
     });
 }
 
@@ -107,7 +50,7 @@ function loadFuncionalidade(funcionalidadeRef) {
 
 function loadFullProjeto(projeto) {
     return new Promise((resolve, reject) => {
-        loadAllFuncionalidades(projeto, funcionalidades => {
+        AirtableBase.loadAllFuncionalidades(projeto, funcionalidades => {
             console.log('loadAllFuncionalidades', funcionalidades ? funcionalidades.length : null);
             loadProjeto(projeto).then(projetoLoaded => {
                 const promises = [];
@@ -300,7 +243,7 @@ function printProject(projetoCodigo, options, filename, printItems) {
         var html = addToPrintTemplate(`<h1>${projeto.Codigo}</h1>\r\n${finalULHTML}`, options.templateFile);
         return writeToPrints(html, filename);
     }, error => {
-        console.log("error printing");
+        console.log("error printing", error);
     })
 }
 
@@ -320,6 +263,7 @@ function printFuncionalidades(projetoCodigo, options) {
 function printAll(projetoCodigo, options) {
     return printProject(projetoCodigo, getFinalOptions(options || {}), projetoCodigo+"-complete.html", true).then(result => {
         console.log("printFuncionalidades DONE!");
+        console.log('prints/' + projetoCodigo+"-complete.html");
         return result;
     }, error => {
         console.log("error printFuncionalidades", error);
@@ -327,5 +271,6 @@ function printAll(projetoCodigo, options) {
 }
 
 // printFuncionalidades("282-A", true, true);
-// printAll("000286-A - KPMG Gameficação", { templateFile: 'apple_email.html' })
+// printFuncionalidades("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
+// printAll("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
 // printAll("000286-A - KPMG Gameficação", { templateFile: 'google_doc_order.html' })
