@@ -120,7 +120,7 @@ function printTotals(item) {
     return `<span class="sum"><strong>Total:</strong>${finalHours}</span>`;
 }
 function printFuncionalidadeSingle(funcionalidade, includeHours) {
-    return includeHours ? `${funcionalidade.Titulo} (${funcionalidade.currentHours})` : `${funcionalidade.Titulo}`;
+    return includeHours ? `<span>${funcionalidade.Titulo} (${funcionalidade.currentHours})</span>` : `<span>${funcionalidade.Titulo}</span>`;
 }
 
 function shoudlPrintItem(item, includeHours) {
@@ -128,10 +128,10 @@ function shoudlPrintItem(item, includeHours) {
 }
 function printItemSingle(item, includeHours) {
     if (includeHours) {
-        return `${item.Titulo} (${item.currentHours})`
+        return `<span>${item.Titulo} (${item.currentHours})</span>`
     } else {
         var titulo = item["Descrição"] && item["Descrição"].length > 0 ? item["Descrição"] : item.Titulo;
-        return `${titulo}`;
+        return `<span>${titulo}</span>`;
     }
 }
 
@@ -215,7 +215,7 @@ function projetoToRecursiveHTMLList(projeto, includeHours, includeTotals, printI
         tree = [];
         for (let g = 0; g < projeto.actorGroups.length; g++) {
             const group = projeto.actorGroups[g];
-            const groupNode = { HTML: group.name }
+            const groupNode = { HTML: `<span>${group.name}</span>` }
             groupNode.children = funcionalidadesToHTMLList(group, group.funcionalidades, includeHours, includeTotals, printItems);
             tree.push(groupNode);
         }
@@ -254,6 +254,7 @@ function getFinalOptions(options) {
 function printFuncionalidades(projetoCodigo, options) {
     return printProject(projetoCodigo, getFinalOptions(options || {}), projetoCodigo+"-macro.html", false).then(result => {
         console.log("printFuncionalidades DONE!");
+        console.log('open "./prints/' + projetoCodigo+'-macro.html"');
         return result;
     }, error => {
         console.log("error printFuncionalidades", error);
@@ -263,7 +264,7 @@ function printFuncionalidades(projetoCodigo, options) {
 function printAll(projetoCodigo, options) {
     return printProject(projetoCodigo, getFinalOptions(options || {}), projetoCodigo+"-complete.html", true).then(result => {
         console.log("printFuncionalidades DONE!");
-        console.log('prints/' + projetoCodigo+"-complete.html");
+        console.log('open "./prints/' + projetoCodigo+'-complete.html"');
         return result;
     }, error => {
         console.log("error printFuncionalidades", error);
