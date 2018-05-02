@@ -167,6 +167,15 @@ function addInitialItemsToProject(projetoTarget) {
     });
 }
 
+module.exports = { 
+    addInitialItemsToProject,
+    copyProject
+};
+
 // copyProject("000287-A - Novas Lojas Magazine Luiza Op Usando Tema Pronto", "000287-A - Novas Lojas Magazine Luiza Op HTML a partir de Design Personalizado")
 // addInitialItemsToProject("000292-A - Plataforma EAD")
 // copyProject("000279-A - KPMG Site/App Op Escopo Fechado", "000279-B - KPMG Site/App Op Escopo Fechado")
+
+// var copyAir = require('./copy')
+// copyAir.copyProject("000287-A - Novas Lojas Magazine Luiza Op Usando Tema Pronto", "000287-A - Novas Lojas Magazine Luiza Op HTML a partir de Design Personalizado")
+// copyAir.addInitialItemsToProject("000292-A - Plataforma EAD")

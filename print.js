@@ -96,22 +96,28 @@ function printULList(item, children, tabSize, beforeCallback, childCallback, aft
         tab += "\t";
     }
     var childTab = tab + "\t";
-    var finalHTML = tab + "<ul>\r\n";
+    var containerTag = "ul";
+    var childTag = "li";
+    if (item.hasOwnProperty("asGroups") && item.asGroups) {
+        containerTag = "div";
+        childTag = "div";
+    }
+    var finalHTML = tab + `<${containerTag}>\r\n`;
     finalHTML += `${beforeCallback(item, tab)}`;
 
     for (let i = 0; i < children.length; i++) {
         const child = children[i];
-        finalHTML += `${childTab}<li>\r\n`
+        finalHTML += `${childTab}<${childTag}>\r\n`;
         finalHTML += `${childCallback(item, child, childTab)}`;
         if (child.children && child.children.length > 0) {
             const childHTML = printULList(child, child.children, tabSize + 2, beforeCallback, childCallback, afterCallback);
             finalHTML += childHTML;
         }
-        finalHTML += `${childTab}</li>\r\n`
+        finalHTML += `${childTab}</${childTag}>\r\n`;
     }
 
     finalHTML += `${afterCallback(item, tab)}`;
-    finalHTML += tab + "</ul>\r\n";
+    finalHTML += tab + `</${containerTag}>\r\n`;
     return finalHTML;
 }
 
@@ -212,6 +218,7 @@ function funcionalidadesToHTMLList(owner, funcionalidades, includeHours, include
 function projetoToRecursiveHTMLList(projeto, includeHours, includeTotals, printItems) {
     var tree;
     if (projeto.actorGroups.length > 1) {
+        projeto.asGroups = true;
         tree = [];
         for (let g = 0; g < projeto.actorGroups.length; g++) {
             const group = projeto.actorGroups[g];
@@ -271,7 +278,15 @@ function printAll(projetoCodigo, options) {
     });
 }
 
-// printFuncionalidades("282-A", true, true);
+module.exports = {
+    printAll, printFuncionalidades
+};
+
 // printFuncionalidades("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
 // printAll("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
 // printAll("000286-A - KPMG Gameficação", { templateFile: 'google_doc_order.html' })
+
+// var printAir = require('./print')
+// printAir.printFuncionalidades("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
+// printAir.printAll("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
+// printAir.printAll("000286-A - KPMG Gameficação", { templateFile: 'google_doc_order.html' })
