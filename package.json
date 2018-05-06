@@ -5,6 +5,7 @@
   "main": "print.js",
   "dependencies": {
     "airtable": "^0.5.2",
+    "asana": "git+https://github.com/gustavorochakv/node-asana.git",
     "dotenv": "^5.0.1",
     "extend": "^3.0.1"
   },
