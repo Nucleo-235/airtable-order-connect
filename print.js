@@ -9,65 +9,6 @@ var defaultOptions = {
     templateFile: "default.html"
 };
 
-function loadProjeto(projetoCodigo) {
-    return new Promise((resolve, reject) => {
-        AirtableBase.getProjectRef(projetoCodigo).then(record => {
-            var projeto = extend({}, record.fields);
-            projeto.id = record.id;
-            resolve(projeto);
-        }, reject);
-    });
-}
-
-function doLoadItem(itemId) {
-    return new Promise((resolve, reject) => {
-        AirtableBase.find('Items', itemId).then(record => {
-            var item = extend({}, record.fields);
-            item.id = record.id;
-            resolve(item);
-        }, reject);
-    });
-}
-
-function loadFuncionalidade(funcionalidadeRef) {
-    return new Promise((resolve, reject) => {
-        var funcionalidade = extend({}, funcionalidadeRef.fields);
-        funcionalidade.id = funcionalidadeRef.id;
-        funcionalidade.LoadedItems = [];
-        
-        const promises = [];
-        // console.log('items', original.Items ? original.Items.length : null);
-        for (let index = 0; index < funcionalidade.Items.length; index++) {
-            const itemId = funcionalidade.Items[index];
-            promises.push(doLoadItem(itemId, funcionalidade));
-        }
-        Promise.all(promises).then(results => {
-            funcionalidade.LoadedItems = results;
-            resolve(funcionalidade);
-        }, reject);
-    });
-}
-
-function loadFullProjeto(projeto) {
-    return new Promise((resolve, reject) => {
-        AirtableBase.loadAllFuncionalidades(projeto, funcionalidades => {
-            console.log('loadAllFuncionalidades', funcionalidades ? funcionalidades.length : null);
-            loadProjeto(projeto).then(projetoLoaded => {
-                const promises = [];
-                for (let i = 0; i < funcionalidades.length; i++) {
-                    const funcionalidade = funcionalidades[i];
-                    promises.push(loadFuncionalidade(funcionalidade));
-                }
-                Promise.all(promises).then(result => {
-                    projetoLoaded.LoadedFuncionalidades = result;
-                    resolve(projetoLoaded);
-                }, reject);
-            });
-            
-        });
-    });
-}
-
 function writeToPrints(content, filename) {
     return new Promise((resolve, reject) => {
         var dir = "./prints";
@@ -141,59 +82,6 @@ function printItemSingle(item, includeHours) {
     }
 }
 
-function setTotals(projeto) {
-    let projetoHours = 0;
-    var baseHourMultipler = projeto["Fator Final"];
-    var funcionalidades = projeto.LoadedFuncionalidades;
-    for (let f = 0; f < funcionalidades.length; f++) {
-        const funcionalidade = funcionalidades[f];
-        funcionalidade.realHours = funcionalidade["Soma Diff"]* baseHourMultipler;
-        funcionalidade.currentHours = Math.ceil(funcionalidade.realHours * 100) / 100.0;
-        funcionalidade.hours = funcionalidade.currentHours;
-        
-        projetoHours += funcionalidade.realHours;
-
-        var funcionalidadeHours = 0;
-        for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
-            const item = funcionalidade.LoadedItems[i];
-            item.realHours = item["Resultado Qty"]* baseHourMultipler;
-            item.currentHours = Math.ceil(item.realHours * 100) / 100.0;
-        }
-    }
-    projeto.hours = projetoHours;
-}
-
-function setActorGroups(projeto) {
-    const groupsMap = {};
-    const groups = [];
-    for (let f = 0; f < projeto.LoadedFuncionalidades.length; f++) {
-        const funcionalidade = projeto.LoadedFuncionalidades[f];
-        var ator = 'GLOBAL';
-        if (funcionalidade.Ator && funcionalidade.Ator.trim().length > 0) {
-            ator = funcionalidade.Ator;
-        }
-        var atorObj = groupsMap[ator];
-        if (!atorObj) {
-            atorObj = { name: ator, funcionalidades: [] };
-            groups.push(atorObj);
-            groupsMap[ator] = atorObj;
-        }
-        atorObj.funcionalidades.push(funcionalidade);
-    }
-    projeto.actorGroups = groups;
-    for (let g = 0; g < projeto.actorGroups.length; g++) {
-        const group = projeto.actorGroups[g];
-        let groupHours = 0;
-        
-        var funcionalidades = group.funcionalidades;
-        for (let f = 0; f < funcionalidades.length; f++) {
-            const funcionalidade = funcionalidades[f];
-            groupHours += funcionalidade.realHours;
-        }
-        group.hours = groupHours;
-    }
-}
-
 function funcionalidadesToHTMLList(owner, funcionalidades, includeHours, includeTotals, printItems) {
     var tree = [];
     for (let f = 0; f < funcionalidades.length; f++) {
@@ -241,10 +129,7 @@ function addToPrintTemplate(content, templateFile) {
 }
 
 function printProject(projetoCodigo, options, filename, printItems) {
-    return loadFullProjeto(projetoCodigo).then(projeto => {
-        setTotals(projeto);
-        setActorGroups(projeto);
-
+    return AirtableBase.loadFullProjeto(projetoCodigo).then(projeto => {
         var treeNodes = projetoToRecursiveHTMLList(projeto, options.includeHours, options.includeTotals, printItems);
         var finalULHTML = printULList(projeto, treeNodes);
         var html = addToPrintTemplate(`<h1>${projeto.Codigo}</h1>\r\n${finalULHTML}`, options.templateFile);
