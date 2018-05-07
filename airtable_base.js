@@ -129,7 +129,7 @@ function loadProjeto(projetoCodigo) {
     });
 }
 
-function loadFullProjeto(projeto) {
+function loadFullProjeto(projeto, projectFilter = null) {
     return new Promise((resolve, reject) => {
         loadAllFuncionalidades(projeto, funcionalidades => {
             console.log('loadAllFuncionalidades', funcionalidades ? funcionalidades.length : null);
@@ -141,6 +141,8 @@ function loadFullProjeto(projeto) {
                 }
                 Promise.all(promises).then(result => {
                     projetoLoaded.LoadedFuncionalidades = result;
+                    if (projectFilter)
+                        projetoLoaded = projectFilter(projetoLoaded);
                     setTotals(projetoLoaded);
                     setActorGroups(projetoLoaded);
                     resolve(projetoLoaded);
@@ -205,9 +207,23 @@ function setActorGroups(projeto) {
     }
 }
 
+function filterFuncionalidades(projeto, minOrder, maxOrder) {
+    var funcionalidades = [];
+    var removedFuncionalidades = [];
+    for (const funcionalidade of projeto.LoadedFuncionalidades) {
+        if (funcionalidade.Order >= minOrder && funcionalidade.Order <= maxOrder)
+            funcionalidades.push(funcionalidade);
+        else 
+            removedFuncionalidades.push(funcionalidade);
+    }
+    projeto.LoadedFuncionalidades = funcionalidades;
+    projeto.RemovedFuncionalidades = removedFuncionalidades;
+    return projeto;
+}
+
 module.exports = { 
   runOnBases, find, select, main_base,
   getProjectRef, loadFullProjeto, loadProjeto,
   loadFuncionalidade, loadAllFuncionalidades,
-  setTotals,
+  setTotals, setActorGroups, filterFuncionalidades
 };

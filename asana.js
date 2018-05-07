@@ -132,8 +132,8 @@ const promiseSerial = funcs =>
     promise.then(result => func().then(Array.prototype.concat.bind(result))),
     Promise.resolve([]))
 
-function saveAirtableToAsana(projetoCodigo, workspaceName, projectName, sectionName = null) {
-  return AirtableBase.loadFullProjeto(projetoCodigo).then(projeto => {
+function saveAirtableToAsana(projetoCodigo, workspaceName, projectName, sectionName = null, projectFilter = null) {
+  return AirtableBase.loadFullProjeto(projetoCodigo, projectFilter).then(projeto => {
     const newTasks = projeto.LoadedFuncionalidades.map(funcionalidade => {
       const newTask = { name: `${funcionalidade.Titulo} (${funcionalidade.currentHours})`, children: [] };
       if (funcionalidade.Ator && funcionalidade.Ator.length) {
@@ -153,3 +153,11 @@ function saveAirtableToAsana(projetoCodigo, workspaceName, projectName, sectionN
 module.exports = {
   getWorkspaceInfoByName, getProjectByName, saveTaskWithNames, saveTasksWithNames, saveAirtableToAsana
 }
+
+// var AirtableBase = require('./airtable_base.js');
+// var asana = require('./asana')
+
+// TODAS
+// asana.saveAirtableToAsana("000279-B - KPMG Site/App Op Escopo Fechado", "Nucleo", "KPMG", "V4-V5");
+// LIMITANDO
+// asana.saveAirtableToAsana("000279-B - KPMG Site/App Op Escopo Fechado", "Nucleo", "KPMG", "V4-V5", (proj) => { return AirtableBase.filterFuncionalidades(proj, 100, 110); });
