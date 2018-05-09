@@ -6,7 +6,10 @@ var fs = require('fs');
 var defaultOptions = { 
     includeHours: false, 
     includeTotals: false,
-    templateFile: "default.html"
+    templateFile: "default.html",
+    forceIncludeItems: false,
+    groupPrefix: "",
+    groupSufix: "",
 };
 
 function writeToPrints(content, filename) {
@@ -82,42 +85,43 @@ function printItemSingle(item, includeHours) {
     }
 }
 
-function funcionalidadesToHTMLList(owner, funcionalidades, includeHours, includeTotals, printItems) {
+function funcionalidadesToHTMLList(owner, funcionalidades, options, printItems) {
     var tree = [];
     for (let f = 0; f < funcionalidades.length; f++) {
         const funcionalidade = funcionalidades[f];
-        const treeFuncionalidade = { HTML: printFuncionalidadeSingle(funcionalidade, includeHours), children: [] };
+        const treeFuncionalidade = { HTML: printFuncionalidadeSingle(funcionalidade, options.includeHours), children: [] };
         tree.push(treeFuncionalidade);
 
         if (printItems) {
             for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
                 const item = funcionalidade.LoadedItems[i];
-                if (shoudlPrintItem(item, includeHours))
-                    treeFuncionalidade.children.push({ HTML: printItemSingle(item, includeHours), children: [] });
+                if (options.forceIncludeItems || shoudlPrintItem(item, options.includeHours))
+                    treeFuncionalidade.children.push({ HTML: printItemSingle(item, options.includeHours), children: [] });
             }
         }
     }
-    if (includeTotals)
+    if (options.includeTotals)
         tree.push({ HTML: printTotals(owner) });
 
     return tree;
 }
 
-function projetoToRecursiveHTMLList(projeto, includeHours, includeTotals, printItems) {
+function projetoToRecursiveHTMLList(projeto, options, printItems) {
     var tree;
+
     if (projeto.actorGroups.length > 1) {
         projeto.asGroups = true;
         tree = [];
         for (let g = 0; g < projeto.actorGroups.length; g++) {
             const group = projeto.actorGroups[g];
-            const groupNode = { HTML: `<span>${group.name}</span>` }
-            groupNode.children = funcionalidadesToHTMLList(group, group.funcionalidades, includeHours, includeTotals, printItems);
+            const groupNode = { HTML: `<span>${options.groupPrefix}${group.name}${options.groupSufix}</span>` }
+            groupNode.children = funcionalidadesToHTMLList(group, group.funcionalidades, options, printItems);
             tree.push(groupNode);
         }
-        if (includeTotals)
+        if (options.includeTotals)
             tree.push({ HTML: printTotals(projeto) });
     } else {
-        tree = funcionalidadesToHTMLList(projeto, projeto.LoadedFuncionalidades, includeHours, includeTotals, printItems);
+        tree = funcionalidadesToHTMLList(projeto, projeto.LoadedFuncionalidades, options, printItems);
     }
     return tree;
 }
@@ -130,7 +134,7 @@ function addToPrintTemplate(content, templateFile) {
 
 function printProject(projetoCodigo, options, filename, printItems) {
     return AirtableBase.loadFullProjeto(projetoCodigo).then(projeto => {
-        var treeNodes = projetoToRecursiveHTMLList(projeto, options.includeHours, options.includeTotals, printItems);
+        var treeNodes = projetoToRecursiveHTMLList(projeto, options, printItems);
         var finalULHTML = printULList(projeto, treeNodes);
         var html = addToPrintTemplate(`<h1>${projeto.Codigo}</h1>\r\n${finalULHTML}`, options.templateFile);
         return writeToPrints(html, filename);
@@ -175,3 +179,5 @@ module.exports = {
 // printAir.printFuncionalidades("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
 // printAir.printAll("000265-B - Intranet Refeita Alinha", { templateFile: 'apple_email.html' })
 // printAir.printAll("000286-A - KPMG Gameficação", { templateFile: 'google_doc_order.html' })
+
+// printAir.printAll("000265-C - Intranet Refeita Alinha", { templateFile: "word_contract.html", forceIncludeItems: true, groupPrefix: "Para os(as) ", groupSufix: "s: " });
