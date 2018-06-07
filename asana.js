@@ -5,11 +5,41 @@ var extend = require('extend');
 var asana = require('asana');
 var asanaClient = asana.Client.create().useAccessToken(process.env.ASANA_TOKEN);
 
+function processNextPage(response, baseArray) {
+  if (!response.nextPage) {
+    return Promise.resolve(baseArray);
+  }
+  return new Promise((resolve, reject) => {
+    response.nextPage().then(function(nextPageResponse) {
+      var newResult = nextPageResponse ? nextPageResponse.data || nextPageResponse : [];
+      if (Array.isArray(newResult) && newResult.length > 0) {
+        baseArray.push.apply(baseArray, newResult);
+        processNextPage(nextPageResponse, baseArray).then(resolve, reject);
+      } else {
+        resolve(baseArray);
+      }
+    }, reject);
+  });
+}
+
 function processAsanaRequest(asanaRequest) {
   return new Promise((resolve, reject) => {
     return asanaRequest.then(response => {
       // console.log(response);
       return resolve(response.data || response);
+    }, reject);
+  });
+}
+
+function processAsanaListRequest(asanaRequest) {
+  return new Promise((resolve, reject) => {
+    return asanaRequest.then(response => {
+      var baseResult = response.data || response;
+      if (Array.isArray(baseResult)) {
+        processNextPage(response, baseResult).then(resolve, reject);
+      } else {
+        resolve(baseResult);
+      }
     }, reject);
   });
 }
@@ -35,39 +65,41 @@ function findOne(asanaListPromise, listName, filterCallback) {
 }
 
 function getWorkspaces() {
-  return processAsanaRequest(asanaClient.workspaces.findAll({ }));
+  return processAsanaListRequest(asanaClient.workspaces.findAll({ limit: 100 }));
 }
 function getWorkspaceInfoByName(name) {
   return findOne(getWorkspaces(), "workspaces", item => item.name === name);
 }
 function getProjects(workspace) {
-  const request = asanaClient.projects.findByWorkspace(workspace.id);
-  return processAsanaRequest(request);
+  const request = asanaClient.projects.findByWorkspace(workspace.id, { limit: 100 });
+  return processAsanaListRequest(request);
 }
 function getProjectByName(workspace, name) {
   return findOne(getProjects(workspace), "projects", item => item.name === name);
 }
 function getTasks(project) {
-  const request = asanaClient.tasks.findByProject(project.id, { opt_fields: "memberships.section.id, memberships.project.id" });
-  return processAsanaRequest(request);
+  const request = asanaClient.tasks.findByProject(project.id, { limit: 100, opt_fields: "name,completed,memberships.section.id,memberships.section.name,memberships.project.id,memberships.project.name" });
+  return processAsanaListRequest(request);
 }
 function getSectionTasks(project, section) {
   const sectionId = section.id;
-  return findFiltered(getTasks(project), item => { 
-    return item.memberships && item.memberships.filter(member => member.section && member.section.id == sectionId).length > 0;
-  });
+  return findFiltered(getTasks(project), item => item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
+}
+function getIncompleteSectionTasks(project, section) {
+  const sectionId = section.id;
+  return findFiltered(getTasks(project), item => !item.completed && item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
 }
 function getSubTasks(task) {
-  const request = asanaClient.tasks.subtasks(task.id, { opt_fields: "memberships.section.id, memberships.project.id" });
-  return processAsanaRequest(request);
+  const request = asanaClient.tasks.subtasks(task.id, { limit: 100, opt_fields: "name,completed,memberships.section.id, memberships.section.name, memberships.project.id, memberships.project.name" });
+  return processAsanaListRequest(request);
 }
 function findTaskByName(project, name) {
   return findOne(getTasks(project), "tasks", item => item.name === name);
 }
 
 function getSections(project) {
-  const request = asanaClient.sections.findByProject(project.id);
-  return processAsanaRequest(request);
+  const request = asanaClient.sections.findByProject(project.id, { limit: 100 });
+  return processAsanaListRequest(request);
   
 }
 function getSectionByName(project, name) {
@@ -272,8 +304,10 @@ function addChildrenToSection(workspaceName, sourceProjectName, sourceSectionNam
           if (projectsWithSections[0] && projectsWithSections[1]) {
             const sourceProjectWithSection = projectsWithSections[0];
             const targetProjectWithSection = projectsWithSections[1];
-            getSectionTasks(sourceProjectWithSection.project, sourceProjectWithSection.section).then(tasks => {
+            getIncompleteSectionTasks(sourceProjectWithSection.project, sourceProjectWithSection.section).then(tasks => {
+              console.log('tasks', tasks.length);
               promiseSerial(tasks.map(task => exec => getSubTasks(task))).then(subTasks => {
+                console.log('subTasks', subTasks.length);
                 promiseSerial(subTasks.map(subTask => 
                   exec => addToProject(subTask, targetProjectWithSection.project, targetProjectWithSection.section))
                 ).then(finalResults => {
