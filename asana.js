@@ -135,12 +135,12 @@ const promiseSerial = funcs =>
 function saveAirtableToAsana(projetoCodigo, workspaceName, projectName, sectionName = null, projectFilter = null) {
   return AirtableBase.loadFullProjeto(projetoCodigo, projectFilter).then(projeto => {
     const newTasks = projeto.LoadedFuncionalidades.map(funcionalidade => {
-      const newTask = { name: `${funcionalidade.Titulo} (${funcionalidade.currentHours})`, children: [] };
+      const newTask = { name: `${funcionalidade.Titulo} [${funcionalidade["Soma Diff"]}]`, children: [] };
       if (funcionalidade.Ator && funcionalidade.Ator.length) {
         newTask.name = `[${funcionalidade.Ator}] ` + newTask.name;
       }
       for (const item of funcionalidade.LoadedItems) {
-        newTask.children.push(`${item.Titulo} (${item.currentHours})`);
+        newTask.children.push(`${item.Titulo} [${item["Resultado Qty"]}]`);
       }
       return newTask;
     })
