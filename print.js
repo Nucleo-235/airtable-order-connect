@@ -3,6 +3,8 @@ var AirtableBase = require('./airtable_base.js');
 var extend = require('extend');
 var fs = require('fs');
 
+const { exec } = require('child_process');
+
 const defaultFuncionalidadePrinter = (funcionalidade) => `<span>${funcionalidade.Titulo}</span>`;
 const hoursFuncionalidadePrinter = (funcionalidade) => `<span>${funcionalidade.Titulo} (${funcionalidade.currentHours})</span>`;
 const difficultyFuncionalidadePrinter = (funcionalidade) => `<span>${funcionalidade.Titulo} [${funcionalidade["Soma Diff"]}]</span>`;
@@ -170,6 +172,7 @@ function printFuncionalidades(projetoCodigo, options) {
     return printProject(projetoCodigo, getFinalOptions(options || {}), projetoCodigo+"-macro.html", false).then(result => {
         console.log("printFuncionalidades DONE!");
         console.log('open "./prints/' + projetoCodigo+'-macro.html"');
+        exec(`open "${result}"`);
         return result;
     }, error => {
         console.log("error printFuncionalidades", error);
@@ -180,6 +183,7 @@ function printAll(projetoCodigo, options) {
     return printProject(projetoCodigo, getFinalOptions(options || {}), projetoCodigo+"-complete.html", true).then(result => {
         console.log("printFuncionalidades DONE!");
         console.log('open "./prints/' + projetoCodigo+'-complete.html"');
+        exec(`open "${result}"`);
         return result;
     }, error => {
         console.log("error printFuncionalidades", error);

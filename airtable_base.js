@@ -88,7 +88,7 @@ function loadFuncionalidade(funcionalidadeRef) {
             promises.push(loadItem(itemId, funcionalidade));
         }
         Promise.all(promises).then(results => {
-            funcionalidade.LoadedItems = results.sort((a, b) => a.Codigo - b.Codigo);
+            funcionalidade.LoadedItems = results.sort((a, b) => a.Order - b.Order);
             resolve(funcionalidade);
         }, reject);
     });
@@ -102,7 +102,7 @@ function loadAllFuncionalidades(projeto, callback) {
       // console.log('loadAllFuncionalidades data');
       callback(data);
   }, error => {
-      console.error('loadAllFuncionalidades err', err);
+      console.error('loadAllFuncionalidades err', error);
   });
 }
 
