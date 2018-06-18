@@ -1,10 +1,9 @@
 require('dotenv').config()
 var Airtable = require('airtable');
 var extend = require('extend');
-var base2018_01to03 = new Airtable({apiKey: process.env.API_KEY}).base('appdfAwtINoSYGqqD');
-var base2018_03to = new Airtable({apiKey: process.env.API_KEY}).base('appUY5izA64IFGRd1');
-var main_base = base2018_03to;
-var bases = [base2018_01to03, base2018_03to];
+// le as bases e usa a primeira como principal
+var bases = process.env.AIRTABLE_BASES.split(",").map(baseCode => new Airtable({apiKey: process.env.AIRTABLE_KEY}).base(baseCode));
+var main_base = bases[0];
 
 function runOnBases(tempBases, runCallback, retryEndCallback) {
   const currentBase = tempBases[0];
