@@ -125,11 +125,11 @@ function getSectionAndProject(workspace, projectName, sectionName) {
   })
 }
 
-function addToProject(task, project, section) {
+function addToProject(task, project, section, last_task = null) {
   return new Promise((resolve, reject) => {
     const params = {
       project: project.id,
-      insert_before:  null,
+      insert_before:  null
     };
     const newMembership = {
       project: project
@@ -149,6 +149,12 @@ function addToProject(task, project, section) {
         delete params.insert_before;
         newMembership.section = section;
       }
+    }
+
+    if (last_task) {
+      delete params.insert_before;
+      delete params.section;
+      params.insert_after = last_task.id;
     }
 
     asanaClient.tasks.addProject(task.id, params).then(() => {
@@ -205,11 +211,13 @@ function saveTask(workspace, project, section, name, childrenNames, parent = nul
     }
     asanaClient.tasks.create(data).then(taskResult => {
       if (childrenNames && childrenNames.length > 0) {
-        const promises = [];
-        for (const childrenName of childrenNames) {
-          promises.push(saveTask(workspace, project, section, childrenName, [], taskResult));
+        const funcs = [];
+        // forçado reverse para garantir que insere na ordem correta
+        const inverseChildrenNames = childrenNames.reverse();
+        for (const childrenName of inverseChildrenNames) {
+          funcs.push(exec => saveTask(workspace, project, section, childrenName, [], taskResult));
         }
-        Promise.all(promises).then(results => {
+        promiseSerial(funcs).then(results => {
           taskResult.subtasks = results;
           resolve(taskResult);
         }, reject);
@@ -308,8 +316,13 @@ function addChildrenToSection(workspaceName, sourceProjectName, sourceSectionNam
               console.log('tasks', tasks.length);
               promiseSerial(tasks.map(task => exec => getSubTasks(task))).then(subTasks => {
                 console.log('subTasks', subTasks.length);
+                let lastTask = null;
                 promiseSerial(subTasks.map(subTask => 
-                  exec => addToProject(subTask, targetProjectWithSection.project, targetProjectWithSection.section))
+                  exec => { 
+                    const result = addToProject(subTask, targetProjectWithSection.project, targetProjectWithSection.section, lastTask);
+                    lastTask = subTask;
+                    return result;
+                  })
                 ).then(finalResults => {
                   console.log('addChildrenToSection FINISHED');
                   resolve(finalResults);

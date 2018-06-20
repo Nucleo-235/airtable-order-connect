@@ -88,6 +88,7 @@ function loadFuncionalidade(funcionalidadeRef) {
         }
         Promise.all(promises).then(results => {
             funcionalidade.LoadedItems = results.sort((a, b) => a.Order - b.Order);
+            // console.log("Loaded Items", funcionalidade.LoadedItems.map(i => i.Codigo));
             resolve(funcionalidade);
         }, reject);
     });
