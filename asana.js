@@ -287,7 +287,11 @@ function saveAirtableToAsana(projetoCodigo, workspaceName, projectName, sectionN
         newTask.name = `[${funcionalidade.Ator}] ` + newTask.name;
       }
       for (const item of funcionalidade.LoadedItems) {
-        newTask.children.push(`${item.Titulo} [${item["Resultado Qty"]}]`);
+        let itemName = `${item.Titulo} [${item["Resultado Qty"]}]`;
+        if (item["Módulo"] && item["Módulo"].length) {
+          itemName = `[${item["Módulo"]}] ` + itemName;
+        }
+        newTask.children.push(itemName);
       }
       return newTask;
     })

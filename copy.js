@@ -33,7 +33,7 @@ function doCopyItem(item, newFuncionalidadeRef, newProjetoRef) {
             delete cloned["id"];
             delete cloned["_rawJson"];
             delete cloned["_table"];
-            var validFields = ["Titulo", "Order", "Categoria", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
+            var validFields = ["Titulo", "Order", "Categoria", "Módulo", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
             var fieldKeys = Object.keys(cloned.fields);
             for (let f = 0; f < fieldKeys.length; f++) {
                 const fieldKey = fieldKeys[f];
@@ -59,7 +59,7 @@ function doCopyItem(item, newFuncionalidadeRef, newProjetoRef) {
 function doAddEmptyItem(funcionalidadeRef) {
     return new Promise((resolve, reject) => {
         var item = { fields: {} };
-        var validFields = ["Titulo", "Order", "Categoria", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
+        var validFields = ["Titulo", "Order", "Categoria", "Módulo", "Descrição", "Quantidade", "Já fiz?", "Dificuldade", "Trabalhoso?", "Estimativa", "Valor Extra", "Colaborador", "Status"];
         item.fields.Titulo = "";
         item.fields.Quantidade = 1;
         if (funcionalidadeRef.fields && funcionalidadeRef.fields.Order) {
