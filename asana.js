@@ -91,7 +91,7 @@ function getIncompleteSectionTasks(project, section) {
 }
 function getSubTasks(task) {
   const request = asanaClient.tasks.subtasks(task.id, { limit: 100, opt_fields: "name,completed,memberships.section.id, memberships.section.name, memberships.project.id, memberships.project.name" });
-  return processAsanaListRequest(request);
+  return findFiltered(processAsanaListRequest(request), item => !item.completed);
 }
 function findTaskByName(project, name) {
   return findOne(getTasks(project), "tasks", item => item.name === name);
