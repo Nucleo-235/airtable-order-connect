@@ -5,11 +5,15 @@ var fs = require('fs');
 
 const { exec } = require('child_process');
 
+function replaceLines(value) {
+    return value.replace(/(?:\r\n|\r|\n)/g, '<br>');
+}
+
 const defaultFuncionalidadePrinter = (funcionalidade) => `<span>${funcionalidade.Titulo}</span>`;
 const hoursFuncionalidadePrinter = (funcionalidade) => `<span>${funcionalidade.Titulo} (${funcionalidade.currentHours})</span>`;
 const difficultyFuncionalidadePrinter = (funcionalidade) => `<span>${funcionalidade.Titulo} [${funcionalidade["Soma Diff"]}]</span>`;
 
-const descriptionOrTitle = item => item["Descrição"] && item["Descrição"].length > 0 ? item["Descrição"] : item.Titulo;
+const descriptionOrTitle = item => item["Descrição"] && item["Descrição"].length > 0 ? replaceLines(item["Descrição"]) : item.Titulo;
 const defaultItemPrinter = (item) => `<span>${descriptionOrTitle(item)}</span>`;
 const hoursItemPrinter = (item) => `<span>${item.Titulo} (${item.currentHours})</span>`;
 const difficultyItemPrinter = (item) => `<span>${item.Titulo} [${item["Resultado Qty"]}]</span>`;
@@ -18,7 +22,6 @@ var defaultOptions = {
     mode: "default", // hours, diff
     includeTotals: false,
     templateFile: "default.html",
-    forceIncludeItems: false,
     groupPrefix: "",
     groupSufix: "",
 };
@@ -82,7 +85,8 @@ function printTotals(item) {
 }
 
 function shoudlPrintItem(item) {
-    return (item["Descrição"] && item["Descrição"].length > 0);
+    console.log(item);
+    return (item["Descrição"] && item["Descrição"].length > 0) && item["Quantidade"] > 0;
 }
 
 function funcionalidadesToHTMLList(owner, funcionalidades, options, printItems) {
@@ -92,11 +96,21 @@ function funcionalidadesToHTMLList(owner, funcionalidades, options, printItems) 
         const treeFuncionalidade = { HTML: options.printFuncionalidade(funcionalidade), children: [] };
         tree.push(treeFuncionalidade);
 
-        if (printItems) {
-            for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
-                const item = funcionalidade.LoadedItems[i];
-                if (options.forceIncludeItems || shoudlPrintItem(item))
-                    treeFuncionalidade.children.push({ HTML: options.printItem(item), children: [] });
+        if (options) {
+            if (options.hasOwnProperty('forceIncludeItems')) {
+                if (options.forceIncludeItems) {
+                    for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
+                        const item = funcionalidade.LoadedItems[i];
+                        treeFuncionalidade.children.push({ HTML: options.printItem(item), children: [] });
+                    }
+                }
+            } else {
+                for (let i = 0; i < funcionalidade.LoadedItems.length; i++) {
+                    const item = funcionalidade.LoadedItems[i];
+                    if (shoudlPrintItem(item)) {
+                        treeFuncionalidade.children.push({ HTML: options.printItem(item), children: [] });
+                    }
+                }
             }
         }
     }
@@ -154,7 +168,7 @@ function addToPrintTemplate(content, templateFile) {
 }
 
 function printProject(projetoCodigo, options, filename, printItems) {
-    return AirtableBase.loadFullProjeto(projetoCodigo).then(projeto => {
+    return AirtableBase.loadFullProjeto(projetoCodigo, options.projectFilter).then(projeto => {
         var treeNodes = projetoToRecursiveHTMLList(projeto, options, printItems);
         var finalULHTML = printULList(projeto, treeNodes);
         var html = addToPrintTemplate(`<h1>${projeto.Codigo}</h1>\r\n${finalULHTML}`, options.templateFile);

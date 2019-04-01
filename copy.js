@@ -63,7 +63,7 @@ function doAddEmptyItem(funcionalidadeRef) {
         item.fields.Titulo = "";
         item.fields.Quantidade = 1;
         if (funcionalidadeRef.fields && funcionalidadeRef.fields.Order) {
-            item.fields.Order = funcionalidadeRef.fields.Order * 10;
+            item.fields.Order = 1;
             if (funcionalidadeRef.fields.Items && funcionalidadeRef.fields.Items.length > 0)
                 item.fields.Order = item.fields.Order + funcionalidadeRef.fields.Items.length;
         }

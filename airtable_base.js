@@ -221,9 +221,18 @@ function filterFuncionalidades(projeto, minOrder, maxOrder) {
     return projeto;
 }
 
+function findFiltered(asanaListPromise, filterCallback) {
+    return new Promise((resolve, reject) => {
+      return asanaListPromise.then(items => {
+        resolve(items.filter(filterCallback));
+      }, reject);
+    });
+  }
+
 module.exports = { 
   runOnBases, find, select, main_base,
   getProjectRef, loadFullProjeto, loadProjeto,
   loadFuncionalidade, loadAllFuncionalidades,
-  setTotals, setActorGroups, filterFuncionalidades
+  setTotals, setActorGroups, filterFuncionalidades,
+  findFiltered
 };

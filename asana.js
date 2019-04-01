@@ -5,6 +5,10 @@ var extend = require('extend');
 var asana = require('asana');
 var asanaClient = asana.Client.create().useAccessToken(process.env.ASANA_TOKEN);
 
+function replaceLines(value) {
+  return value.replace(/(?:\r\n|\r|\n)/g, '<br>');
+}
+
 function processNextPage(response, baseArray) {
   if (!response.nextPage) {
     return Promise.resolve(baseArray);
@@ -44,17 +48,9 @@ function processAsanaListRequest(asanaRequest) {
   });
 }
 
-function findFiltered(asanaListPromise, filterCallback) {
-  return new Promise((resolve, reject) => {
-    return asanaListPromise.then(items => {
-      resolve(items.filter(filterCallback));
-    }, reject);
-  });
-}
-
 function findOne(asanaListPromise, listName, filterCallback) {
   return new Promise((resolve, reject) => {
-    return findFiltered(asanaListPromise, filterCallback).then(results => {
+    return AirtableBase.findFiltered(asanaListPromise, filterCallback).then(results => {
       if (results.length > 0) {
         asanaClient[listName].findById(results[0].id).then(resolve, reject);
       } else {
@@ -83,15 +79,15 @@ function getTasks(project) {
 }
 function getSectionTasks(project, section) {
   const sectionId = section.id;
-  return findFiltered(getTasks(project), item => item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
+  return AirtableBase.findFiltered(getTasks(project), item => item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
 }
 function getIncompleteSectionTasks(project, section) {
   const sectionId = section.id;
-  return findFiltered(getTasks(project), item => !item.completed && item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
+  return AirtableBase.findFiltered(getTasks(project), item => !item.completed && item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
 }
 function getSubTasks(task) {
   const request = asanaClient.tasks.subtasks(task.id, { limit: 100, opt_fields: "name,completed,memberships.section.id, memberships.section.name, memberships.project.id, memberships.project.name" });
-  return findFiltered(processAsanaListRequest(request), item => !item.completed);
+  return AirtableBase.findFiltered(processAsanaListRequest(request), item => !item.completed);
 }
 function findTaskByName(project, name) {
   return findOne(getTasks(project), "tasks", item => item.name === name);
@@ -197,10 +193,11 @@ function doRemoveFromProject(task, project) {
   });
 }
 
-function saveTask(workspace, project, section, name, childrenNames, parent = null) {
+function saveTask(workspace, project, section, name, description, childrenDetails, parent = null) {
   return new Promise((resolve, reject) => {
     const data = {
       name: name,
+      notes: description ? replaceLines(description) : description  ,
       workspace: workspace.id,
     }
     if (parent) {
@@ -209,13 +206,14 @@ function saveTask(workspace, project, section, name, childrenNames, parent = nul
       data.projects = [ project.id ];
       data.memberships = [ { project: project.id, section: section.id } ];
     }
+    // console.log('saving', data);
     asanaClient.tasks.create(data).then(taskResult => {
-      if (childrenNames && childrenNames.length > 0) {
+      if (childrenDetails && childrenDetails.length > 0) {
         const funcs = [];
         // forçado reverse para garantir que insere na ordem correta
-        const inverseChildrenNames = childrenNames.reverse();
-        for (const childrenName of inverseChildrenNames) {
-          funcs.push(exec => saveTask(workspace, project, section, childrenName, [], taskResult));
+        const inverseChildrenDetails = childrenDetails.reverse();
+        for (const childrenDetail of inverseChildrenDetails) {
+          funcs.push(exec => saveTask(workspace, project, section, childrenDetail.name, childrenDetail.description, [], taskResult));
         }
         promiseSerial(funcs).then(results => {
           taskResult.subtasks = results;
@@ -228,7 +226,7 @@ function saveTask(workspace, project, section, name, childrenNames, parent = nul
   });
 }
 
-function saveTaskWithNames(workspaceName, projectName, sectionName, name, childrenNames) {
+function saveTaskWithNames(workspaceName, projectName, sectionName, name, description, childrenDetails) {
   return new Promise((resolve, reject) => {
     getWorkspaceInfoByName(workspaceName).then(workspace => {
       if (workspace) {
@@ -236,10 +234,10 @@ function saveTaskWithNames(workspaceName, projectName, sectionName, name, childr
           if (project) {
             if (sectionName) {
               getSectionByName(project, sectionName).then(section => {
-                saveTask(workspace, project, section, name, childrenNames).then(resolve, reject)
+                saveTask(workspace, project, section, name, description, childrenDetails).then(resolve, reject)
               }, reject)
             } else
-              saveTask(workspace, project, null, name, childrenNames).then(resolve, reject);
+              saveTask(workspace, project, null, name, description, childrenDetails).then(resolve, reject);
           } else
             resolve(null);
         }, reject)
@@ -259,12 +257,12 @@ function saveTasksWithNames(workspaceName, projectName, tasks, sectionName = nul
               getSectionByName(project, sectionName).then(section => {
                 const funcs = [];
                 for (const taskInfo of tasks) {
-                  funcs.push(exec => saveTaskWithNames(workspaceName, projectName, sectionName, taskInfo.name, taskInfo.children));
+                  funcs.push(exec => saveTaskWithNames(workspaceName, projectName, sectionName, taskInfo.name, taskInfo.description || '', taskInfo.children));
                 }
                 promiseSerial(funcs).then(resolve, reject);
               }, reject)
             } else
-              saveTask(workspace, project, null, name, childrenNames).then(resolve, reject);
+              saveTask(workspace, project, null, name, '', childrenNames).then(resolve, reject);
           } else
             resolve(null);
         }, reject)
@@ -288,10 +286,11 @@ function saveAirtableToAsana(projetoCodigo, workspaceName, projectName, sectionN
       }
       for (const item of funcionalidade.LoadedItems) {
         let itemName = `${item.Titulo} [${item["Resultado Qty"]}]`;
+        let itemDesc = item["Descrição"] || '';
         if (item["Módulo"] && item["Módulo"].length) {
           itemName = `[${item["Módulo"]}] ` + itemName;
         }
-        newTask.children.push(itemName);
+        newTask.children.push({ name: itemName, description: itemDesc });
       }
       return newTask;
     })
