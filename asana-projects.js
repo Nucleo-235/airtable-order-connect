@@ -52,7 +52,7 @@ function findOne(asanaListPromise, listName, filterCallback) {
   return new Promise((resolve, reject) => {
     return AirtableBase.findFiltered(asanaListPromise, filterCallback).then(results => {
       if (results.length > 0) {
-        asanaClient[listName].findById(results[0].id).then(resolve, reject);
+        asanaClient[listName].findById(results[0].gid).then(resolve, reject);
       } else {
         resolve(null);
       }
@@ -67,26 +67,26 @@ function getWorkspaceInfoByName(name) {
   return findOne(getWorkspaces(), "workspaces", item => item.name === name);
 }
 function getProjects(workspace) {
-  const request = asanaClient.projects.findByWorkspace(workspace.id, { limit: 100 });
+  const request = asanaClient.projects.findByWorkspace(workspace.gid, { limit: 100 });
   return processAsanaListRequest(request);
 }
 function getProjectByName(workspace, name) {
   return findOne(getProjects(workspace), "projects", item => item.name === name);
 }
 function getTasks(project) {
-  const request = asanaClient.tasks.findByProject(project.id, { limit: 100, opt_fields: "name,completed,memberships.section.id,memberships.section.name,memberships.project.id,memberships.project.name" });
+  const request = asanaClient.tasks.findByProject(project.gid, { limit: 100, opt_fields: "name,completed,memberships.section.gid,memberships.section.name,memberships.project.gid,memberships.project.name" });
   return processAsanaListRequest(request);
 }
 function getSectionTasks(project, section) {
-  const sectionId = section.id;
-  return AirtableBase.findFiltered(getTasks(project), item => item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
+  const sectionId = section.gid;
+  return AirtableBase.findFiltered(getTasks(project), item => item.memberships && item.memberships.filter(member => member.section && member.section.gid === sectionId).length > 0);
 }
 function getIncompleteSectionTasks(project, section) {
-  const sectionId = section.id;
-  return AirtableBase.findFiltered(getTasks(project), item => !item.completed && item.memberships && item.memberships.filter(member => member.section && member.section.id === sectionId).length > 0);
+  const sectionId = section.gid;
+  return AirtableBase.findFiltered(getTasks(project), item => !item.completed && item.memberships && item.memberships.filter(member => member.section && member.section.gid === sectionId).length > 0);
 }
 function getSubTasks(task) {
-  const request = asanaClient.tasks.subtasks(task.id, { limit: 100, opt_fields: "name,completed,memberships.section.id, memberships.section.name, memberships.project.id, memberships.project.name" });
+  const request = asanaClient.tasks.subtasks(task.gid, { limit: 100, opt_fields: "name,completed,memberships.section.gid, memberships.section.name, memberships.project.gid, memberships.project.name" });
   return AirtableBase.findFiltered(processAsanaListRequest(request), item => !item.completed);
 }
 function findTaskByName(project, name) {
@@ -94,7 +94,7 @@ function findTaskByName(project, name) {
 }
 
 function getSections(project) {
-  const request = asanaClient.sections.findByProject(project.id, { limit: 100 });
+  const request = asanaClient.sections.findByProject(project.gid, { limit: 100 });
   return processAsanaListRequest(request);
   
 }
@@ -124,7 +124,7 @@ function getSectionAndProject(workspace, projectName, sectionName) {
 function addToProject(task, project, section, last_task = null) {
   return new Promise((resolve, reject) => {
     const params = {
-      project: project.id,
+      project: project.gid,
       insert_before:  null
     };
     const newMembership = {
@@ -132,16 +132,16 @@ function addToProject(task, project, section, last_task = null) {
     }
 
     // Checks if already is added to project
-    if (task.memberships && task.memberships.filter(member => member.project && member.project.id == project.id).length > 0) {
+    if (task.memberships && task.memberships.filter(member => member.project && member.project.gid == project.gid).length > 0) {
       return Promise.resolve(task);
     }
 
     if (section) {
       // Checks if already is added to section
-      if (task.memberships && task.memberships.filter(member => member.section && member.section.id == section.id).length > 0) {
+      if (task.memberships && task.memberships.filter(member => member.section && member.section.gid == section.gid).length > 0) {
         return Promise.resolve(task);
       } else {
-        params.section = section.id;
+        params.section = section.gid;
         delete params.insert_before;
         newMembership.section = section;
       }
@@ -150,15 +150,15 @@ function addToProject(task, project, section, last_task = null) {
     if (last_task) {
       delete params.insert_before;
       delete params.section;
-      params.insert_after = last_task.id;
+      params.insert_after = last_task.gid;
     }
 
-    asanaClient.tasks.addProject(task.id, params).then(() => {
+    asanaClient.tasks.addProject(task.gid, params).then(() => {
       if (!task.memberships) {
         task.memberships = [];
       } 
       task.memberships.push(newMembership);
-      console.log('addToProject ADDED', task.name || task.id);
+      console.log('addToProject ADDED', task.name || task.gid);
       resolve(task);
     }, error => {
       reject(error);
@@ -169,17 +169,17 @@ function addToProject(task, project, section, last_task = null) {
 function doRemoveFromProject(task, project) {
   return new Promise((resolve, reject) => {
     const params = {
-      project: project.id
+      project: project.gid
     };
 
     // Checks if is not added added to project
-    if (!task.memberships || task.memberships.filter(member => member.project && member.project.id == project.id).length === 0) {
+    if (!task.memberships || task.memberships.filter(member => member.project && member.project.gid == project.gid).length === 0) {
       return Promise.resolve(task);
     }
 
-    asanaClient.tasks.removeProject(task.id, params).then(() => {
+    asanaClient.tasks.removeProject(task.gid, params).then(() => {
       if (task.memberships) {
-        const results = task.memberships.filter(member => member.project && member.project.id == project.id);
+        const results = task.memberships.filter(member => member.project && member.project.gid == project.gid);
         for (const member of results) {
           const memberIndex = task.memberships.indexOf(member);
           if (memberIndex > 0) {
@@ -187,7 +187,7 @@ function doRemoveFromProject(task, project) {
           }
         }
       }
-      console.log('doRemoveFromProject', task.name || task.id);
+      console.log('doRemoveFromProject', task.name || task.gid);
       resolve(task);
     }, reject)
   });
@@ -198,13 +198,13 @@ function saveTask(workspace, project, section, name, description, childrenDetail
     const data = {
       name: name,
       notes: description ? replaceLines(description) : description  ,
-      workspace: workspace.id,
+      workspace: workspace.gid,
     }
     if (parent) {
-      data.parent = parent.id;
+      data.parent = parent.gid;
     } else if (section) {
-      data.projects = [ project.id ];
-      data.memberships = [ { project: project.id, section: section.id } ];
+      data.projects = [ project.gid ];
+      data.memberships = [ { project: project.gid, section: section.gid } ];
     }
     // console.log('saving', data);
     asanaClient.tasks.create(data).then(taskResult => {
@@ -370,11 +370,11 @@ module.exports = {
 }
 
 // var AirtableBase = require('./airtable_base.js');
-// var asana = require('./asana')
+// var asana = require('./asana-projects')
 
 // TODAS
 // asana.saveAirtableToAsana("000279-B - KPMG Site/App Op Escopo Fechado", "Nucleo", "KPMG", "V4-V5");
 // LIMITANDO
 // asana.saveAirtableToAsana("000279-B - KPMG Site/App Op Escopo Fechado", "Nucleo", "KPMG", "V4-V5", (proj) => { return AirtableBase.filterFuncionalidades(proj, 100, 110); });
-// asana.removeTasksFromSection("Nucleo", "Alinha Sprint", "DONE")
+// asana.removeTasksFromSection("Nucleo", "KPMG Sprint", "DONE")
 // asana.addChildrenToSection("Nucleo", "Alinha", "Sprint 1 (até 44 pontos)", "Alinha Sprint", "TODO")

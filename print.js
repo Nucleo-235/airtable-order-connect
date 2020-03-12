@@ -144,20 +144,16 @@ function projetoToRecursiveHTMLList(projeto, options, printItems) {
     options = processOptionsMode(options);
     var tree;
 
-    if (projeto.actorGroups.length > 1) {
-        projeto.asGroups = true;
-        tree = [];
-        for (let g = 0; g < projeto.actorGroups.length; g++) {
-            const group = projeto.actorGroups[g];
-            const groupNode = { HTML: `<span>${options.groupPrefix}${group.name}${options.groupSufix}</span>` }
-            groupNode.children = funcionalidadesToHTMLList(group, group.funcionalidades, options, printItems);
-            tree.push(groupNode);
-        }
-        if (options.includeTotals)
-            tree.push({ HTML: printTotals(projeto) });
-    } else {
-        tree = funcionalidadesToHTMLList(projeto, projeto.LoadedFuncionalidades, options, printItems);
+    projeto.asGroups = true;
+    tree = [];
+    for (let g = 0; g < projeto.actorGroups.length; g++) {
+        const group = projeto.actorGroups[g];
+        const groupNode = { HTML: `<span>${options.groupPrefix}${group.name}${options.groupSufix}</span>` }
+        groupNode.children = funcionalidadesToHTMLList(group, group.funcionalidades, options, printItems);
+        tree.push(groupNode);
     }
+    if (options.includeTotals)
+        tree.push({ HTML: printTotals(projeto) });
     return tree;
 }
 

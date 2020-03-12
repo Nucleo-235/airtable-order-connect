@@ -82,9 +82,11 @@ function loadFuncionalidade(funcionalidadeRef) {
         
         const promises = [];
         // console.log('items', original.Items ? original.Items.length : null);
-        for (let index = 0; index < funcionalidade.Items.length; index++) {
-            const itemId = funcionalidade.Items[index];
-            promises.push(loadItem(itemId, funcionalidade));
+        if (funcionalidade.Items) {
+            for (let index = 0; index < funcionalidade.Items.length; index++) {
+                const itemId = funcionalidade.Items[index];
+                promises.push(loadItem(itemId, funcionalidade));
+            }
         }
         Promise.all(promises).then(results => {
             funcionalidade.LoadedItems = results.sort((a, b) => a.Order - b.Order);

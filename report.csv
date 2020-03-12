@@ -1,0 +1,19 @@
+;;;userName;henrique;;;;userName;lucas
+Row Labels;Sum of workHours;;;;;;;;
+Alinha;15,84444444;;Row Labels;Sum of workHours;;;;Row Labels;Sum of workHours
+Boca Boca;19,97575758;;Alinha;15,84444444;;;;Contador Aqui;10,33333333
+Compliance;0,909090909;;Boca Boca;19,97575758;;;;Nucleo;88,43492063
+Contador Aqui;10,33333333;;Compliance;0,909090909;;;;Nucleo Site;12,57936508
+KPMG;41,36243201;;KPMG;41,36243201;;;;PapoReto Feedback;2,5
+Nucleo;145,3942058;;Nucleo;56,95928516;;;;PCKT;39,87936508
+Nucleo Site;15,30663781;;Nucleo Site;2,727272727;;;;POC;28,67301587
+PapoReto Feedback;2,9;;PapoReto Feedback;0,4;;;;RSM Canal de Denúncia;13,6
+PCKT;40,99047619;;PCKT;1,111111111;;;;Grand Total;196
+Pick Me;0,4;;Pick Me;0,4;;;;;
+POC;28,67301587;;Roupa Livre;3,333333333;;;;;
+Roupa Livre;3,333333333;;RSM Canal de Denúncia;2;;;;;
+RSM Canal de Denúncia;15,6;;Tonica Instant;52,61616162;;;;;
+Tonica Instant;52,61616162;;Yello;14,36111111;;;;;
+Yello;14,36111111;;Grand Total;212;;;;;
+(blank);;;;;;;;;
+Grand Total;408;;;;;;;;
