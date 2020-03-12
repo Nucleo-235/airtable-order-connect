@@ -7,7 +7,7 @@
     "airtable": "^0.5.2",
     "asana": "git+https://github.com/gustavorochakv/node-asana.git",
     "dotenv": "^5.0.1",
-    "extend": "^3.0.1",
+    "extend": "^3.0.2",
     "json2csv": "^4.5.1",
     "moment": "^2.24.0",
     "querystring": "^0.2.0",
