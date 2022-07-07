@@ -9,7 +9,7 @@
     "dotenv": "^5.0.1",
     "extend": "^3.0.1",
     "json2csv": "^4.5.1",
-    "moment": "^2.24.0",
+    "moment": "^2.29.4",
     "querystring": "^0.2.0",
     "request": "^2.88.0"
   },
